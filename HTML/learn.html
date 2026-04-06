@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Обучение — Python с нуля{% endblock %}
+{% block body_class %}page-learn{% endblock %}
+
+{% block content %}
+<script type="application/json" id="learn-config">{{ {
+  'currentModule': current_module_num,
+  'currentTaskIndex': current_task_index,
+  'currentTaskId': current_task.id,
+  'hint': current_task.hint,
+  'starterCode': current_task.starter_code,
+  'taskDone': task_already_done,
+  'taskXpEarned': current_task.xp if task_already_done else 0
+}|tojson }}</script>
+
+<div class="shell">
+    <aside class="sidebar sidebar-left">
+        <a class="brand-mini" href="{{ url_for('home') }}">Python</a>
+        <nav class="side-nav" aria-label="Разделы">
+            <a class="side-nav__link side-nav__link--active" href="{{ url_for('home') }}">Модули</a>
+            <span class="side-nav__link side-nav__link--muted">Рейтинги</span>
+            <a class="side-nav__link" href="{{ url_for('learn') }}">Задания</a>
+            <span class="side-nav__link side-nav__link--muted">Профиль</span>
+        </nav>
+
+        <div class="card card--soft progress-card">
+            <div class="progress-card__label">{{ current_module.icon }} Модуль {{ current_module_num }}</div>
+            <div class="progress-card__percent">{{ modules_stats[current_module_num - 1].progress }}%</div>
+            <div class="duo-progress sidebar-main-progress" role="progressbar" aria-valuenow="{{ modules_stats[current_module_num - 1].progress }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="duo-progress__fill" style="width: {{ modules_stats[current_module_num - 1].progress }}%"></div>
+            </div>
+            <div class="progress-card__stats">
+                <span><span data-completed-count>{{ completed_tasks }} / {{ total_tasks }}</span> заданий</span>
+                <span><span data-total-xp>{{ user.total_xp }}</span> XP</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-area">
+        <article class="card task-shell">
+            <header class="task-head">
+                <div class="task-head__icon">{{ current_module.icon }}</div>
+                <div>
+                    <h1 class="task-head__title">{{ current_module.title }}</h1>
+                    <p class="task-head__desc">{{ current_module.description }}</p>
+                    <p class="task-pill">Задание {{ current_task_index + 1 }} из {{ current_module.tasks|length }}</p>
+                </div>
+            </header>
+
+            {% set t = current_module.theory %}
+            <section class="theory-panel" aria-labelledby="theory-heading">
+                <div class="theory-panel__head">
+                    <span class="theory-panel__badge">Теория</span>
+                    <h2 id="theory-heading" class="theory-panel__title">📘 Материал модуля</h2>
+                </div>
+                <p class="theory-intro">{{ t.intro }}</p>
+                {% for sec in t.sections %}
+                <div class="theory-block">
+                    <h3 class="theory-block__title">{{ sec.title }}</h3>
+                    <p class="theory-block__text">{{ sec.body }}</p>
+                    {% if sec.code %}
+                    <pre class="theory-snippet" tabindex="0"><code>{{ sec.code }}</code></pre>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                <div class="callout callout--remember">
+                    <div class="callout__label">Запомни</div>
+                    <ul class="callout__list">
+                        {% for line in t.remember %}<li>{{ line }}</li>{% endfor %}
+                    </ul>
+                </div>
+                <div class="callout callout--mistakes">
+                    <div class="callout__label">Частые ошибки</div>
+                    <ul class="callout__list">
+                        {% for line in t.mistakes %}<li>{{ line }}</li>{% endfor %}
+                    </ul>
+                </div>
+                <div class="callout callout--tips">
+                    <div class="callout__label">Подсказки</div>
+                    <ul class="callout__list">
+                        {% for line in t.tips %}<li>{{ line }}</li>{% endfor %}
+                    </ul>
+                </div>
+            </section>
+
+            <section class="task-panel">
+                <h2 class="task-panel__title">Текущее задание</h2>
+                <p class="task-panel__text"><strong>{{ current_task.text }}</strong></p>
+                <button type="button" class="btn btn-ghost" id="hintBtn">Показать подсказку</button>
+            </section>
+
+            <div class="code-workbench">
+                <div class="code-workbench__toolbar">
+                    <span class="code-workbench__dot"></span>
+                    <span class="code-workbench__dot"></span>
+                    <span class="code-workbench__dot"></span>
+                    <span class="code-workbench__label">main.py</span>
+                </div>
+                <div class="code-workbench__body editor-container">
+                    <div class="line-numbers" id="lineNumbers" aria-hidden="true"></div>
+                    <textarea id="codeInput" class="code-input" rows="10" spellcheck="false" wrap="off">{{ current_task.starter_code }}</textarea>
+                </div>
+                <div class="code-workbench__actions">
+                    <button type="button" class="btn btn-accent" id="checkCodeBtn">Проверить решение</button>
+                    <button type="button" class="btn btn-ghost" id="clearCodeBtn">Сбросить шаблон</button>
+                </div>
+            </div>
+
+            <div class="task-nav">
+                <button type="button" class="btn btn-secondary" onclick="previousTask()" {% if current_task_index == 0 %}disabled{% endif %}>Назад</button>
+                <button type="button" class="btn btn-primary" onclick="nextTask()">Далее</button>
+            </div>
+
+            <div class="result-panel" id="result">
+                <span class="result-panel__label">Вывод</span>
+                <pre class="result-panel__out" id="output">Готов к выполнению</pre>
+            </div>
+        </article>
+    </main>
+
+    <aside class="sidebar sidebar-right">
+        <div class="card card--soft">
+            <div class="level-ring-wrap">
+                <div class="level-ring" data-level-ring style="--level-pct: {{ level_info.level_pct }}%;">
+                    <div class="level-ring__inner">
+                        <span class="level-ring__lv" data-level-value>{{ level_info.level }}</span>
+                        <span class="level-ring__sub">уровень</span>
+                    </div>
+                </div>
+                <p class="level-xp-line" data-xp-sub>{{ level_info.xp_in_level }} / {{ level_info.xp_to_next }} XP до след. уровня</p>
+            </div>
+        </div>
+
+        <div class="card card--soft">
+            <h3 class="card__title">Повышай уровень !</h3>
+            <p class="card__muted">Выполняйте задания и набирайте XP.</p>
+        </div>
+
+        <div class="card card--soft">
+            <h3 class="card__title">Модули</h3>
+            <div class="module-list">
+                {% for module in modules_stats %}
+                <div
+                    class="module-row {% if module.is_locked %}module-row--locked{% endif %}"
+                    data-module-id="{{ module.id }}"
+                    {% if not module.is_locked %}onclick="loadModule({{ module.id }})" role="button" tabindex="0"{% endif %}
+                >
+                    <div class="module-row__title">{{ module.icon }} {{ module.title }}</div>
+                    <div class="module-progress module-progress--inline">
+                        <div class="duo-progress small">
+                            <div class="duo-progress__fill" style="width: {{ module.progress }}%"></div>
+                        </div>
+                        <span>{{ module.progress }}%</span>
+                    </div>
+                    {% if module.is_locked %}
+                    <div class="module-row__lock">Завершите предыдущий модуль</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-ghost btn-block" onclick="resetProgress()">Сбросить прогресс</button>
+        <div class="footer-mini">
+            <a href="{{ url_for('home') }}">Главная</a>
+        </div>
+    </aside>
+</div>
+
+<script defer src="{{ url_for('static', filename='js/learn.js') }}"></script>
+{% endblock %}

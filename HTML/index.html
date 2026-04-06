@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Python с нуля — курс{% endblock %}
+{% block body_class %}page-home{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+    <header class="home-header">
+        <div class="home-header__inner">
+            <a class="home-brand" href="{{ url_for('home') }}">
+                <span class="home-brand__mark">Py</span>
+                <span class="home-brand__text">Python с нуля</span>
+            </a>
+            <a href="{{ url_for('learn') }}" class="btn btn-primary btn-header">
+                {% if has_progress %}Продолжить{% else %}Начать{% endif %}
+            </a>
+        </div>
+    </header>
+
+    <main class="home-main">
+        <section class="home-hero card card--elevated">
+            <p class="home-kicker">Интерактивный тренажёр</p>
+            <h1 class="home-title">Учитесь Python на практике</h1>
+            <p class="home-lead">
+                Теория, задания с автопроверкой и сохранение прогресса в сессии.
+                От первого <code>print</code> до циклов <code>for</code> и <code>while</code>.
+            </p>
+        </section>
+
+        <section class="home-continue">
+            {% if next_task %}
+            <a href="{{ url_for('learn') }}" class="continue-card">
+                <div class="continue-card__icon">{{ next_task.module_icon }}</div>
+                <div class="continue-card__body">
+                    <div class="continue-card__label">Продолжить обучение</div>
+                    <div class="continue-card__meta">{{ next_task.module_title }}</div>
+                    <p class="continue-card__task">{{ next_task.text }}</p>
+                </div>
+                <span class="continue-card__arrow" aria-hidden="true">→</span>
+            </a>
+            {% else %}
+            <div class="continue-card continue-card--disabled">
+                <div class="continue-card__body">
+                    <div class="continue-card__label">Начните с первого модуля</div>
+                    <p class="continue-card__task muted">Откройте тренажёр и решите первое задание.</p>
+                </div>
+                <a href="{{ url_for('learn') }}" class="btn btn-primary">Открыть задания</a>
+            </div>
+            {% endif %}
+        </section>
+
+        <div class="home-grid-3">
+            <div class="card card--soft stat-card">
+                <div class="stat-card__label">Текущий прогресс</div>
+                <div class="duo-progress duo-progress--fat" role="progressbar" aria-valuenow="{{ overall_progress_pct }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="duo-progress__fill" style="width: {{ overall_progress_pct }}%;"></div>
+                </div>
+                <p class="stat-card__value">{{ completed_tasks }} / {{ total_tasks }} заданий</p>
+                <p class="stat-card__hint">{{ overall_progress_pct }}% курса пройдено</p>
+            </div>
+
+            <div class="card card--soft stat-card">
+                <div class="stat-card__label">Уровень и XP</div>
+                <div class="level-inline">
+                    <span class="level-inline__num">{{ level_info.level }}</span>
+                    <div class="level-inline__bar">
+                        <div class="duo-progress">
+                            <div class="duo-progress__fill" style="width: {{ level_info.level_pct }}%;"></div>
+                        </div>
+                        <span class="level-inline__xp">{{ level_info.xp_in_level }} / {{ level_info.xp_to_next }} XP</span>
+                    </div>
+                </div>
+                <p class="stat-card__hint">Каждые {{ level_info.xp_to_next }} XP — новый уровень</p>
+            </div>
+
+            <div class="card card--soft stat-card">
+                <div class="stat-card__label">Следующее задание</div>
+                {% if next_task %}
+                <p class="stat-card__value stat-card__value--sm">{{ next_task.text }}</p>
+                <p class="stat-card__hint">{{ next_task.module_title }}</p>
+                {% else %}
+                <p class="stat-card__hint muted">Все задания выполнены или откройте тренажёр.</p>
+                {% endif %}
+                <a class="text-link" href="{{ url_for('learn') }}">Перейти →</a>
+            </div>
+        </div>
+
+        <section class="home-section">
+            <h2 class="section-heading">Достижения</h2>
+            <div class="ach-grid">
+                {% for a in achievements %}
+                <div class="ach-card {% if not a.unlocked %}ach-card--locked{% endif %}">
+                    <div class="ach-card__icon">{{ a.icon }}</div>
+                    <div class="ach-card__title">{{ a.title }}</div>
+                    <p class="ach-card__desc">{{ a.description }}</p>
+                    {% if a.unlocked %}
+                    <span class="ach-card__badge">Получено</span>
+                    {% else %}
+                    <span class="ach-card__badge ach-card__badge--muted">Закрыто</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="home-section">
+            <h2 class="section-heading">Программа</h2>
+            <p class="section-lead">Модули открываются по очереди. Нажмите на карточку, чтобы перейти.</p>
+            <div class="home-modules">
+                {% for module in modules_stats %}
+                    {% if module.is_locked %}
+                    <div class="module-tile module-tile--locked">
+                        <div class="module-tile__head">
+                            <span class="module-tile__icon">{{ module.icon }}</span>
+                            <span class="module-tile__name">{{ module.title }}</span>
+                        </div>
+                        <div class="duo-progress small">
+                            <div class="duo-progress__fill" style="width: {{ module.progress }}%"></div>
+                        </div>
+                        <span class="module-tile__lock">Сначала завершите предыдущий модуль</span>
+                    </div>
+                    {% else %}
+                    <a href="{{ url_for('load_module', module_id=module.id) }}" class="module-tile">
+                        <div class="module-tile__head">
+                            <span class="module-tile__icon">{{ module.icon }}</span>
+                            <span class="module-tile__name">{{ module.title }}</span>
+                        </div>
+                        <div class="duo-progress small">
+                            <div class="duo-progress__fill" style="width: {{ module.progress }}%"></div>
+                        </div>
+                        <span class="module-tile__pct">{{ module.progress }}%</span>
+                    </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+
+    <footer class="home-footer">
+        <span>Python Learn</span>
+        <a href="{{ url_for('learn') }}">Тренажёр</a>
+    </footer>
+</div>
+{% endblock %}
